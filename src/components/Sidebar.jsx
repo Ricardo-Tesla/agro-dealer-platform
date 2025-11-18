@@ -8,7 +8,7 @@ export default function Sidebar() {
     "block px-4 py-2 rounded bg-red-600 text-white transition";
 
   return (
-    <div className="h-screen w-60 bg-gray-100 p-4 border-r">
+    <div className="fixed left-0 top-0 h-screen w-60 bg-gray-100 p-4 border-r overflow-y-auto">
       <h2 className="text-xl font-bold mb-6">Menu</h2>
 
       <nav className="flex flex-col gap-2">
