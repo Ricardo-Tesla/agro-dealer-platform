@@ -1,6 +1,5 @@
 // src/components/StatusBadge.jsx
 
-import React from 'react';
 
 const StatusBadge = ({ status, type = 'stock' }) => {
   const getStatusStyles = () => {
@@ -8,8 +7,6 @@ const StatusBadge = ({ status, type = 'stock' }) => {
       switch (status) {
         case 'in_stock':
           return 'bg-emerald-100 text-emerald-700';
-        case 'low_stock':
-          return 'bg-orange-100 text-orange-700';
         case 'out_of_stock':
           return 'bg-gray-100 text-gray-700';
         default:

@@ -17,7 +17,6 @@ const Products = () => {
     name: '',
     category: '',
     quantity: '',
-    minStock: '',
     price: '',
     expiryDate: '',
     supplier: '',
@@ -36,7 +35,6 @@ const Products = () => {
         name: editingProduct.name || '',
         category: editingProduct.category || '',
         quantity: editingProduct.quantity || '',
-        minStock: editingProduct.minStock || '',
         price: editingProduct.price || '',
         expiryDate: editingProduct.expiryDate || '',
         supplier: editingProduct.supplier || '',
@@ -47,7 +45,6 @@ const Products = () => {
         name: '',
         category: '',
         quantity: '',
-        minStock: '',
         price: '',
         expiryDate: '',
         supplier: '',
@@ -84,7 +81,6 @@ const Products = () => {
     if (!formData.name.trim()) newErrors.name = 'Product name is required';
     if (!formData.category.trim()) newErrors.category = 'Category is required';
     if (!formData.quantity || formData.quantity < 0) newErrors.quantity = 'Valid quantity is required';
-    if (!formData.minStock || formData.minStock < 0) newErrors.minStock = 'Valid minimum stock is required';
     if (!formData.price || formData.price <= 0) newErrors.price = 'Valid price is required';
     if (!formData.supplier.trim()) newErrors.supplier = 'Supplier is required';
     if (!formData.location.trim()) newErrors.location = 'Location is required';
@@ -102,7 +98,6 @@ const Products = () => {
       const dataToSubmit = {
         ...formData,
         quantity: Number(formData.quantity),
-        minStock: Number(formData.minStock),
         price: Number(formData.price)
       };
 
