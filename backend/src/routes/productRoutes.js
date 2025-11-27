@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     const { search } = req.query;
     let query = {};
 
-    // If search term is provided, search across multiple fields
+    
     if (search) {
       query = {
         $or: [
@@ -64,7 +64,7 @@ router.post('/', async (req, res) => {
   try {
     const { name, category, quantity, price, expiryDate, supplier, location } = req.body;
 
-    // Create product - status will be automatically calculated by pre-save middleware
+    
     const product = new Product({ 
       name, 
       category, 
@@ -88,12 +88,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update product (status auto-calculated by model middleware)
+
 router.put('/:id', async (req, res) => {
   try {
     const { name, category, quantity, minStock, price, expiryDate, supplier, location } = req.body;
 
-    // Update product - status will be automatically calculated by pre-update middleware
+    
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
       { 
@@ -124,7 +124,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Update quantity only (useful for quick stock adjustments)
+
 router.patch('/:id/quantity', async (req, res) => {
   try {
     const { quantity } = req.body;
@@ -140,7 +140,7 @@ router.patch('/:id/quantity', async (req, res) => {
     }
     
     product.quantity = Number(quantity);
-    await product.save(); // This triggers the pre-save middleware to update status
+    await product.save(); 
     
     res.json(product);
   } catch (err) {

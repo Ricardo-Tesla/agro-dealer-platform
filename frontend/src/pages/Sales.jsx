@@ -28,7 +28,7 @@ const Sales = () => {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // API base URL - Update this to match your backend
+
   const API_BASE_URL = 'http://localhost:5000/api';
 
   // Calculate statistics from sales data
