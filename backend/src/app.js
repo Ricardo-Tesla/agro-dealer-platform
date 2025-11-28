@@ -3,6 +3,9 @@ import cors from "cors";
 import productRoutes from "./routes/productRoutes.js";
 import saleRoutes from "./routes/saleRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
+import stockRoutes from "./routes/stockRoutes.js";
+
+
 
 const app = express();
 
@@ -13,6 +16,7 @@ app.use(express.json());
 app.use("/api/products", productRoutes);
 app.use("/api/sales", saleRoutes);
 app.use("/api/suppliers", supplierRoutes);
+app.use("/api/stock", stockRoutes);
 
 app.get("/", (req, res) => res.send("Agro Dealer API Running"));
 
