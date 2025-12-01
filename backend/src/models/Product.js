@@ -1,4 +1,3 @@
-// models/Product.js
 import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema({
@@ -7,92 +6,95 @@ const productSchema = new mongoose.Schema({
     required: [true, 'Product name is required'],
     trim: true
   },
-  category: {
+  description: {
     type: String,
-    required: [true, 'Category is required'],
-    enum: ['Seeds', 'Fertilizer', 'Tools', 'Pesticides', 'Equipment', 'Other']
-  },
-  quantity: {
-    type: Number,
-    required: [true, 'Quantity is required'],
-    min: [0, 'Quantity cannot be negative'],
-    default: 0
-  },
-  
-  price: {
-    type: Number,
-    required: [true, 'Price is required'],
-    min: [0, 'Price cannot be negative']
-  },
-  expiryDate: {
-    type: String,
-    default: ''
+    trim: true
   },
   supplier: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Supplier',
+    required: [true, 'Product must have a supplier']
+  },
+  supplierName: {
     type: String,
-    required: [true, 'Supplier is required'],
+    required: true
+  },
+  category: {
+    type: String,
     trim: true
   },
-  location: {
+  purchasePrice: {
+    type: Number,
+    required: [true, 'Purchase price is required'],
+    min: [0, 'Purchase price cannot be negative']
+  },
+  sellingPrice: {
+    type: Number,
+    required: [true, 'Selling price is required'],
+    min: [0, 'Selling price cannot be negative']
+  },
+  stock: {
+    type: Number,
+    required: true,
+    default: 0,
+    min: [0, 'Stock cannot be negative']
+  },
+  minStockLevel: {
+    type: Number,
+    default: 10,
+    min: [0, 'Minimum stock level cannot be negative']
+  },
+  unit: {
     type: String,
-    required: [true, 'Location is required'],
+    default: 'pcs',
     trim: true
   },
-  status: {
+  sku: {
     type: String,
-    enum: ['in_stock', 'out_of_stock'],
-    default: 'in_stock'
+    unique: true,
+    sparse: true,
+    trim: true
   }
 }, {
   timestamps: true
 });
 
-// Method to calculate and update status based on quantity
-productSchema.methods.updateStatus = function() {
-  if (this.quantity === 0) {
-    this.status = 'out_of_stock';
-  } else {
-    this.status = 'in_stock';
-  }
-  return this.status;
+// Create index for faster queries
+productSchema.index({ supplier: 1, name: 1 });
+productSchema.index({ stock: 1 });
+
+// Virtual field to check if stock is low
+productSchema.virtual('isLowStock').get(function() {
+  return this.stock <= this.minStockLevel;
+});
+
+// Method to check if sufficient stock is available
+productSchema.methods.hasEnoughStock = function(quantity) {
+  return this.stock >= quantity;
 };
 
-// Pre-save middleware to automatically update status before saving
-productSchema.pre('save', function(next) {
-  this.updateStatus();
-  next();
-});
-
-// Pre-update middleware to automatically update status on findOneAndUpdate
-productSchema.pre('findOneAndUpdate', async function(next) {
-  const update = this.getUpdate();
-  
-  // If quantity or minStock is being updated, recalculate status
-  if (update.quantity !== undefined || update.minStock !== undefined) {
-    const docToUpdate = await this.model.findOne(this.getQuery());
-    
-    if (docToUpdate) {
-      const newQuantity = update.quantity !== undefined ? update.quantity : docToUpdate.quantity;
-      
-      
-      let newStatus;
-      if (newQuantity === 0) {
-        newStatus = 'out_of_stock';
-      
-      } else {
-        newStatus = 'in_stock';
-      }
-      
-      update.status = newStatus;
-    }
+// Method to add stock (when purchasing from supplier)
+productSchema.methods.addStock = async function(quantity) {
+  if (quantity <= 0) {
+    throw new Error('Quantity must be positive');
   }
-  
-  next();
-});
+  this.stock += quantity;
+  return await this.save();
+};
 
-// Index for search optimization
-productSchema.index({ name: 'text', category: 'text', supplier: 'text' });
+// Method to reduce stock (when making a sale)
+productSchema.methods.reduceStock = async function(quantity) {
+  if (quantity <= 0) {
+    throw new Error('Quantity must be positive');
+  }
+  if (!this.hasEnoughStock(quantity)) {
+    throw new Error(`Insufficient stock. Available: ${this.stock}, Requested: ${quantity}`);
+  }
+  this.stock -= quantity;
+  return await this.save();
+};
 
 const Product = mongoose.model('Product', productSchema);
 
 export default Product;
+

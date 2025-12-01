@@ -1,165 +1,151 @@
-// routes/productRoutes.js
 import express from 'express';
 import Product from '../models/Product.js';
+import Supplier from '../models/Supplier.js';
 
 const router = express.Router();
 
-// Get all products with optional search
+// Get all products
 router.get('/', async (req, res) => {
   try {
-    const { search } = req.query;
-    let query = {};
-
-    
-    if (search) {
-      query = {
-        $or: [
-          { name: { $regex: search, $options: 'i' } },
-          { category: { $regex: search, $options: 'i' } },
-          { supplier: { $regex: search, $options: 'i' } }
-        ]
-      };
-    }
-
-    const products = await Product.find(query).sort({ createdAt: -1 });
+    const products = await Product.find()
+      .populate('supplier', 'name contact')
+      .sort({ createdAt: -1 });
     res.json(products);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 
-// Get single product by ID
+// Get products by supplier ID
+router.get('/supplier/:supplierId', async (req, res) => {
+  try {
+    const products = await Product.find({ supplier: req.params.supplierId })
+      .populate('supplier', 'name contact');
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get single product
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const product = await Product.findById(req.params.id)
+      .populate('supplier', 'name contact address');
+    if (!product) {
+      return res.status(404).json({ message: 'Product not found' });
+    }
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Get low stock products
+router.get('/alerts/low-stock', async (req, res) => {
+  try {
+    const products = await Product.find()
+      .populate('supplier', 'name');
     
+    const lowStockProducts = products.filter(product =>
+      product.stock <= product.minStockLevel
+    );
+    
+    res.json(lowStockProducts);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update product
+router.put('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    res.json(product);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Get products by status
-router.get('/status/:status', async (req, res) => {
-  try {
-    const { status } = req.params;
-    
-    if (!['in_stock', 'out_of_stock'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid status. Use: in_stock, or out_of_stock' });
-    }
-    
-    const products = await Product.find({ status }).sort({ createdAt: -1 });
-    res.json(products);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
-
-// Create a new product (status auto-calculated by model middleware)
-router.post('/', async (req, res) => {
-  try {
-    const { name, category, quantity, price, expiryDate, supplier, location } = req.body;
-
-    
-    const product = new Product({ 
+    const { 
       name, 
-      category, 
-      quantity: Number(quantity),  
-      price: Number(price), 
-      expiryDate, 
+      description, 
       supplier, 
-      location 
-    });
+      category, 
+      purchasePrice, 
+      sellingPrice,
+      minStockLevel,
+      unit,
+      sku
+    } = req.body;
     
-    const savedProduct = await product.save();
-    res.status(201).json(savedProduct);
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ 
-        message: 'Validation error', 
-        errors: Object.values(err.errors).map(e => e.message)
-      });
+    // If supplier is being changed, verify new supplier exists
+    if (supplier && supplier !== product.supplier.toString()) {
+      const supplierDoc = await Supplier.findById(supplier);
+      if (!supplierDoc) {
+        return res.status(400).json({ message: 'Invalid supplier. Supplier does not exist.' });
+      }
+      product.supplier = supplier;
+      product.supplierName = supplierDoc.name;
     }
-    res.status(400).json({ message: err.message });
-  }
-});
-
-
-router.put('/:id', async (req, res) => {
-  try {
-    const { name, category, quantity, minStock, price, expiryDate, supplier, location } = req.body;
-
     
-    const updatedProduct = await Product.findByIdAndUpdate(
-      req.params.id,
-      { 
-        name, 
-        category, 
-        quantity: Number(quantity), 
-        price: Number(price), 
-        expiryDate, 
-        supplier, 
-        location 
-      },
-      { new: true, runValidators: true }
-    );
-
-    if (!updatedProduct) {
-      return res.status(404).json({ message: 'Product not found' });
-    }
-
+    if (name) product.name = name;
+    if (description !== undefined) product.description = description;
+    if (category) product.category = category;
+    if (purchasePrice !== undefined) product.purchasePrice = purchasePrice;
+    if (sellingPrice !== undefined) product.sellingPrice = sellingPrice;
+    if (minStockLevel !== undefined) product.minStockLevel = minStockLevel;
+    if (unit) product.unit = unit;
+    if (sku) product.sku = sku;
+    
+    const updatedProduct = await product.save();
+    await updatedProduct.populate('supplier', 'name contact');
+    
     res.json(updatedProduct);
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      return res.status(400).json({ 
-        message: 'Validation error', 
-        errors: Object.values(err.errors).map(e => e.message)
-      });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Product with this SKU already exists' });
     }
-    res.status(400).json({ message: err.message });
+    res.status(400).json({ message: error.message });
   }
 });
 
-
-router.patch('/:id/quantity', async (req, res) => {
+// Add stock (purchase from supplier)
+router.post('/:id/add-stock', async (req, res) => {
   try {
     const { quantity } = req.body;
     
-    if (quantity === undefined || quantity < 0) {
-      return res.status(400).json({ message: 'Valid quantity is required and cannot be negative' });
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({ message: 'Quantity must be a positive number' });
     }
     
     const product = await Product.findById(req.params.id);
-    
     if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    product.quantity = Number(quantity);
-    await product.save(); 
+    await product.addStock(quantity);
+    await product.populate('supplier', 'name contact');
     
-    res.json(product);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.json({
+      message: 'Stock added successfully',
+      product
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 });
 
 // Delete product
 router.delete('/:id', async (req, res) => {
   try {
-    const deleted = await Product.findByIdAndDelete(req.params.id);
-    
-    if (!deleted) {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
       return res.status(404).json({ message: 'Product not found' });
     }
     
-    res.json({ message: 'Product deleted successfully', deletedProduct: deleted });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    await product.deleteOne();
+    res.json({ message: 'Product deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 

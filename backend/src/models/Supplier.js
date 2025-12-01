@@ -1,14 +1,47 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const supplierSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  email: String,
-  phone: String,
-  location: String,
-  productsSupplied: Number,
-  totalValue: Number,
-  rating: Number,
-  lastDelivery: Date
-}, { timestamps: true });
+  name: {
+    type: String,
+    required: [true, 'Supplier name is required'],
+    trim: true,
+    unique: true
+  },
+  contact: {
+    type: String,
+    required: [true, 'Contact information is required'],
+    trim: true
+  },
+  address: {
+    type: String,
+    required: [true, 'Address is required'],
+    trim: true
+  },
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  phone: {
+    type: String,
+    trim: true
+  }
+}, {
+  timestamps: true
+});
 
-export default mongoose.model("Supplier", supplierSchema);
+// Prevent deletion if supplier has products
+supplierSchema.pre('deleteOne', { document: true, query: false }, async function(next) {
+  const Product = mongoose.model('Product');
+  const productCount = await Product.countDocuments({ supplier: this._id });
+  
+  if (productCount > 0) {
+    throw new Error('Cannot delete supplier with existing products. Please delete products first.');
+  }
+  next();
+});
+
+const Supplier = mongoose.model('Supplier', supplierSchema);
+
+export default Supplier;
+

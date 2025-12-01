@@ -11,7 +11,6 @@ const Suppliers = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isProductsModalOpen, setIsProductsModalOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
 
   useEffect(() => {
@@ -39,10 +38,6 @@ const Suppliers = () => {
     setIsProductsModalOpen(true);
   };
 
-  const handleCloseProductsModal = () => {
-    setSelectedSupplier(null);
-    setIsProductsModalOpen(false);
-  };
 
   const filteredSuppliers = suppliers.filter((supplier) =>
     supplier.name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -135,13 +130,7 @@ const Suppliers = () => {
         </div>
       </div>
 
-      {/* Products Modal */}
-      {isProductsModalOpen && (
-        <Products
-          supplierFilter={selectedSupplier}
-          onClose={handleCloseProductsModal}
-        />
-      )}
+      
     </div>
   );
 };
