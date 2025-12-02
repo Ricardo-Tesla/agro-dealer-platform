@@ -24,6 +24,21 @@ const supplierSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
+    required: [true, 'Address is required'],
+    trim: true
+  },
+  product: {
+    type: String,
+    required: [true, 'product is required'],
+    trim: true
+  },
+  quantity: {
+    type: Number,
+    required: [true, 'quantity is required']
+  },
+  category: {
+    type: String,
+    required: [true, 'category is required'],
     trim: true
   }
 }, {
