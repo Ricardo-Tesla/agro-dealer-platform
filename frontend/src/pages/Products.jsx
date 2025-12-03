@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Edit, Trash2 } from "lucide-react";
 import SearchBar from "../components/SearchBar.jsx";
-import StatusBadge from "../components/StatusBadge.jsx";
 
 const API_URL = "http://localhost:5000/api/products";
 
@@ -20,19 +19,16 @@ const Products = ({ supplierFilter = null }) => {
       setLoading(true);
       let url = API_URL;
 
-      // If supplierFilter is provided, fetch products for that supplier
       if (supplierFilter) {
-        url = `${API_URL}/supplier/${supplierFilter}`;
+        url = `http://localhost:5000/api/suppliers/${supplierFilter}/products`;
       }
 
       const response = await fetch(url);
-      if (!response.ok) {
-        const errMsg = await response.text();
-        throw new Error(errMsg || "Failed to fetch products");
-      }
+      if (!response.ok) throw new Error("Failed to fetch products");
 
       const data = await response.json();
-      setProducts(data);
+      // Populate supplier from API (backend already populates supplier in Product routes)
+      setProducts(supplierFilter ? data.products : data);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -46,10 +42,8 @@ const Products = ({ supplierFilter = null }) => {
     if (!window.confirm("Are you sure you want to delete this product?")) return;
     try {
       const response = await fetch(`${API_URL}/${id}`, { method: "DELETE" });
-      if (!response.ok) {
-        const errMsg = await response.text();
-        throw new Error(errMsg || "Failed to delete product");
-      }
+      if (!response.ok) throw new Error("Failed to delete product");
+
       setProducts(products.filter((p) => p._id !== id));
     } catch (err) {
       alert("Error deleting product: " + err.message);
@@ -58,33 +52,31 @@ const Products = ({ supplierFilter = null }) => {
   };
 
   const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.supplierName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.supplier?.name?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
+    const search = searchTerm.toLowerCase();
+    const category = product.supplier?.category || "";
+    return (
+      product.name.toLowerCase().includes(search) ||
+      category.toLowerCase().includes(search) ||
+      product.supplier?.name?.toLowerCase().includes(search)
+    );
   });
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
         Loading products...
       </div>
     );
-  }
 
-  if (error) {
+  if (error)
     return (
       <div className="flex items-center justify-center h-64 text-red-500">
         Error: {error}
       </div>
     );
-  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">
@@ -92,20 +84,18 @@ const Products = ({ supplierFilter = null }) => {
           </h2>
           <p className="text-gray-500 mt-1">
             {supplierFilter
-              ? "View and manage products from this supplier"
-              : "View your agricultural products inventory"}
+              ? "Products from this supplier"
+              : "All products in inventory"}
           </p>
         </div>
       </div>
 
-      {/* Search Bar */}
       <SearchBar
-        placeholder="Search products by name, category, or supplier..."
+        placeholder="Search by product, category, or supplier..."
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
       />
 
-      {/* Products Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -117,23 +107,14 @@ const Products = ({ supplierFilter = null }) => {
                 <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
                   Category
                 </th>
-                <th className="text-center py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
+                <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
                   Stock
-                </th>
-                <th className="text-right py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
-                  Purchase Price
-                </th>
-                <th className="text-right py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
-                  Selling Price
                 </th>
                 {!supplierFilter && (
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
                     Supplier
                   </th>
                 )}
-                <th className="text-center py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
-                  Status
-                </th>
                 <th className="text-center py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
                   Actions
                 </th>
@@ -143,7 +124,7 @@ const Products = ({ supplierFilter = null }) => {
               {filteredProducts.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={supplierFilter ? "7" : "8"}
+                    colSpan={supplierFilter ? 4 : 5}
                     className="py-8 text-center text-gray-500"
                   >
                     No products found
@@ -155,51 +136,25 @@ const Products = ({ supplierFilter = null }) => {
                     key={product._id}
                     className="hover:bg-gray-50 transition-colors"
                   >
-                    <td className="py-4 px-6">
-                      <div className="font-medium text-gray-900">
-                        {product.name}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        {product.description}
-                      </div>
+                    <td className="py-4 px-6 font-medium text-gray-900">
+                      {product.name}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-600">
-                      {product.category}
+                    <td className="py-4 px-6 text-gray-600">
+                      {product.supplier?.category || "-"}
                     </td>
-                    <td className="py-4 px-6 text-center">
-                      <div className="font-semibold text-gray-900">
-                        {product.stock} {product.unit}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Min: {product.minStockLevel}
-                      </div>
-                    </td>
-                    <td className="py-4 px-6 text-right font-medium text-gray-900">
-                      RWf {product.purchasePrice?.toLocaleString()}
-                    </td>
-                    <td className="py-4 px-6 text-right font-semibold text-gray-900">
-                      RWf {product.sellingPrice?.toLocaleString()}
+                    <td className="py-4 px-6 font-semibold text-gray-900">
+                      {product.quantity}
                     </td>
                     {!supplierFilter && (
-                      <td className="py-4 px-6 text-sm text-gray-600">
-                        {product.supplierName || product.supplier?.name}
+                      <td className="py-4 px-6 text-gray-600">
+                        {product.supplier?.name || "Unknown"}
                       </td>
                     )}
-                    <td className="py-4 px-6 text-center">
-                      <StatusBadge
-                        status={
-                          product.stock <= product.minStockLevel
-                            ? "low"
-                            : "in-stock"
-                        }
-                        type="stock"
-                      />
-                    </td>
                     <td className="py-4 px-6 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <button
                           className="p-2 hover:bg-blue-50 rounded-lg transition-colors text-blue-600"
-                          onClick={() => alert("Edit feature coming soon")}
+                          onClick={() => alert("Edit name/category feature coming soon")}
                         >
                           <Edit size={16} />
                         </button>
@@ -223,4 +178,3 @@ const Products = ({ supplierFilter = null }) => {
 };
 
 export default Products;
-

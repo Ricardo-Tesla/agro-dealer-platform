@@ -56,10 +56,10 @@ const Suppliers = () => {
     setSubmitLoading(true);
 
     try {
-      const url = editingSupplier 
-        ? `${API_URL}/${editingSupplier._id}` 
+      const url = editingSupplier
+        ? `${API_URL}/${editingSupplier._id}`
         : API_URL;
-      
+
       const method = editingSupplier ? "PUT" : "POST";
 
       const response = await fetch(url, {
@@ -234,16 +234,17 @@ const Suppliers = () => {
                 filteredSuppliers.map((supplier) => (
                   <tr key={supplier._id} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6 font-medium text-gray-900">{supplier.name}</td>
-                    <td className="py-4 px-6 text-sm text-gray-600">{supplier.contact}</td>
-                    <td className="py-4 px-6 text-sm text-gray-600">{supplier.phone}</td>
+                    <td className="py-4 px-6 text-sm text-gray-600 ">{supplier.contact}</td>
+                    <td className="py-4 px-6 text-sm text-gray-600 whitespace-nowrap min-w-[120px] inline-block">{supplier.phone}</td>
                     <td className="py-4 px-6 text-sm text-gray-600">{supplier.email || "—"}</td>
                     <td className="py-4 px-6 text-sm text-gray-600">{supplier.address}</td>
-                    <td className="py-4 px-6 text-sm text-gray-600">{supplier.product}</td>
+                    <td className="py-4 px-6 text-sm text-gray-600 whitespace-nowrap min-w-[120px] inline-block">{supplier.product}</td>
                     <td className="py-4 px-6 text-sm text-gray-600">{supplier.quantity}</td>
                     <td className="py-4 px-6 text-sm text-gray-600">
-                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs whitespace-nowrap min-w-[120px] inline-block text-center">
                         {supplier.category}
                       </span>
+
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center justify-center gap-2">
