@@ -108,7 +108,7 @@ const Products = ({ supplierFilter = null }) => {
                   Category
                 </th>
                 <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
-                  Stock
+                  Quantity
                 </th>
                 {!supplierFilter && (
                   <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase">
