@@ -1,7 +1,6 @@
 import express from 'express';
 import Sale from '../models/Sale.js';
 import Product from '../models/Product.js';
-import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -35,20 +34,13 @@ router.get('/:id', async (req, res) => {
 router.get('/reports/date-range', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    
     const query = {};
     if (startDate && endDate) {
-      query.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate)
-      };
+      query.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
     }
-    
     const sales = await Sale.find(query).sort({ createdAt: -1 });
-    
     const totalRevenue = sales.reduce((sum, sale) => sum + sale.totalAmount, 0);
     const totalSales = sales.length;
-    
     res.json({
       sales,
       summary: {
@@ -62,43 +54,39 @@ router.get('/reports/date-range', async (req, res) => {
   }
 });
 
-// Create new sale (with stock validation and reduction)
+// Create new sale (without transaction)
 router.post('/', async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
     const { items, paymentMethod, customerName, customerContact, notes } = req.body;
-    
+
     if (!items || items.length === 0) {
-      await session.abortTransaction();
       return res.status(400).json({ message: 'Sale must have at least one item' });
     }
-    
+
     // Validate stock availability for all items
     const stockErrors = [];
     const processedItems = [];
     let totalAmount = 0;
-    
+
     for (const item of items) {
-      const product = await Product.findById(item.productId).session(session);
+      const product = await Product.findById(item.productId);
       
       if (!product) {
         stockErrors.push(`Product with ID ${item.productId} not found`);
         continue;
       }
-      
+
       // Check if enough stock is available
       if (!product.hasEnoughStock(item.quantity)) {
         stockErrors.push(
-          `Insufficient stock for "${product.name}". Available: ${product.stock} ${product.unit}, Requested: ${item.quantity}`
+          `Insufficient stock for "${product.name}". Available: ${product.quantity} ${product.unit || ''}, Requested: ${item.quantity}`
         );
         continue;
       }
-      
-      const unitPrice = item.price || product.sellingPrice;
+
+      const unitPrice = item.price || product.sellingPrice || 0;
       const subtotal = unitPrice * item.quantity;
-      
+
       processedItems.push({
         product: product._id,
         productName: product.name,
@@ -106,19 +94,18 @@ router.post('/', async (req, res) => {
         unitPrice: unitPrice,
         subtotal: subtotal
       });
-      
+
       totalAmount += subtotal;
     }
-    
-    // If there are any stock errors, abort the transaction
+
+    // If there are any stock errors, return them
     if (stockErrors.length > 0) {
-      await session.abortTransaction();
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Cannot complete sale due to stock issues',
-        errors: stockErrors 
+        errors: stockErrors
       });
     }
-    
+
     // Create the sale
     const sale = new Sale({
       items: processedItems,
@@ -129,75 +116,56 @@ router.post('/', async (req, res) => {
       notes: notes || '',
       status: 'completed'
     });
-    
-    await sale.save({ session });
-    
+
+    await sale.save();
+
     // Reduce stock for each item
     for (const item of processedItems) {
-      const product = await Product.findById(item.product).session(session);
+      const product = await Product.findById(item.product);
       await product.reduceStock(item.quantity);
     }
-    
-    // Commit the transaction
-    await session.commitTransaction();
-    
+
     // Populate and return the sale
     await sale.populate('items.product', 'name category unit');
-    
     res.status(201).json({
       message: 'Sale created successfully',
       sale
     });
-    
   } catch (error) {
-    await session.abortTransaction();
     res.status(400).json({ message: error.message });
-  } finally {
-    session.endSession();
   }
 });
 
 // Cancel sale (restore stock)
 router.post('/:id/cancel', async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
   try {
-    const sale = await Sale.findById(req.params.id).session(session);
+    const sale = await Sale.findById(req.params.id);
     
     if (!sale) {
-      await session.abortTransaction();
       return res.status(404).json({ message: 'Sale not found' });
     }
-    
+
     if (sale.status === 'cancelled') {
-      await session.abortTransaction();
       return res.status(400).json({ message: 'Sale is already cancelled' });
     }
-    
+
     // Restore stock for each item
     for (const item of sale.items) {
-      const product = await Product.findById(item.product).session(session);
+      const product = await Product.findById(item.product);
       if (product) {
         await product.addStock(item.quantity);
       }
     }
-    
+
     sale.status = 'cancelled';
-    await sale.save({ session });
-    
-    await session.commitTransaction();
-    
+    await sale.save();
+
     res.json({
       message: 'Sale cancelled successfully. Stock has been restored.',
       sale
     });
-    
   } catch (error) {
-    await session.abortTransaction();
     res.status(400).json({ message: error.message });
-  } finally {
-    session.endSession();
   }
 });
 
@@ -205,16 +173,17 @@ router.post('/:id/cancel', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const sale = await Sale.findById(req.params.id);
+    
     if (!sale) {
       return res.status(404).json({ message: 'Sale not found' });
     }
-    
+
     if (sale.status !== 'cancelled') {
-      return res.status(400).json({ 
-        message: 'Cannot delete active sale. Please cancel it first to restore stock.' 
+      return res.status(400).json({
+        message: 'Cannot delete active sale. Please cancel it first to restore stock.'
       });
     }
-    
+
     await sale.deleteOne();
     res.json({ message: 'Sale deleted successfully' });
   } catch (error) {
@@ -223,4 +192,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 export default router;
-

@@ -29,7 +29,6 @@ const saleItemSchema = new mongoose.Schema({
 const saleSchema = new mongoose.Schema({
   saleNumber: {
     type: String,
-    required: true,
     unique: true
   },
   items: [saleItemSchema],
@@ -66,24 +65,36 @@ const saleSchema = new mongoose.Schema({
 
 // Generate sale number before saving
 saleSchema.pre('save', async function(next) {
-  if (this.isNew) {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
-    // Find the last sale of the day
-    const lastSale = await this.constructor.findOne({
-      saleNumber: new RegExp(`^SALE-${year}${month}${day}`)
-    }).sort({ saleNumber: -1 });
-    
-    let sequence = 1;
-    if (lastSale) {
-      const lastSequence = parseInt(lastSale.saleNumber.split('-')[2]);
-      sequence = lastSequence + 1;
+  if (this.isNew && !this.saleNumber) {
+    try {
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      
+      const datePrefix = `SALE-${year}${month}${day}`;
+      
+      // Find the last sale of the day using the Sale model directly
+      const Sale = mongoose.model('Sale');
+      const lastSale = await Sale.findOne({
+        saleNumber: new RegExp(`^${datePrefix}`)
+      }).sort({ saleNumber: -1 });
+      
+      let sequence = 1;
+      if (lastSale && lastSale.saleNumber) {
+        const parts = lastSale.saleNumber.split('-');
+        if (parts.length === 3) {
+          const lastSequence = parseInt(parts[2]);
+          if (!isNaN(lastSequence)) {
+            sequence = lastSequence + 1;
+          }
+        }
+      }
+      
+      this.saleNumber = `${datePrefix}-${String(sequence).padStart(4, '0')}`;
+    } catch (error) {
+      return next(error);
     }
-    
-    this.saleNumber = `SALE-${year}${month}${day}-${String(sequence).padStart(4, '0')}`;
   }
   next();
 });
@@ -91,4 +102,3 @@ saleSchema.pre('save', async function(next) {
 const Sale = mongoose.model('Sale', saleSchema);
 
 export default Sale;
-
